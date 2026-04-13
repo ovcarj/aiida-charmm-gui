@@ -34,9 +34,3 @@ If you have already set up your own aiida_charmm_gui code using
 ``verdi code setup``, you may want to try the following command::
 
     charmm_gui-submit  # uses aiida_charmm_gui.cli
-
-Available calculations
-++++++++++++++++++++++
-
-.. aiida-calcjob:: DiffCalculation
-    :module: aiida_charmm_gui.calculations
