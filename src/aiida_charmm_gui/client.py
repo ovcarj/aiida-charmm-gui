@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -11,11 +10,8 @@ from typing import Any
 
 import requests
 
-BASE_URL = "https://charmm-gui.org"
-LOGIN_URL = f"{BASE_URL}/api/login"
-DEFAULT_CONFIG_DIR = Path.home() / ".config" / "aiida-charmm-gui"
-DEFAULT_CACHE_DIR = Path.home() / ".cache" / "aiida-charmm-gui"
-DEFAULT_TOKEN_FILE = DEFAULT_CACHE_DIR / "token.json"
+LOGIN_URL = "https://charmm-gui.org/api/login"
+DEFAULT_TOKEN_FILE = Path.home() / ".cache" / "aiida-charmm-gui" / "token.json"
 
 
 class CharmmGuiAuthError(RuntimeError):
@@ -33,7 +29,7 @@ class TokenInfo:
 
     def is_valid(self, margin_seconds: int = 60) -> bool:
         """Return True if token is still valid with a small safety margin."""
-        expires = datetime.fromisoformat(self.expires_at)
+        expires = datetime.fromisoformat(self.expires_at.replace("Z", "+00:00"))
         now = datetime.now(timezone.utc)
         return now + timedelta(seconds=margin_seconds) < expires
 
@@ -48,8 +44,8 @@ class CharmmGuiClient:
         token_file: Path | None = None,
         timeout: int = 30,
     ) -> None:
-        self.email = email or os.getenv("CHARMM_GUI_EMAIL")
-        self.password = password or os.getenv("CHARMM_GUI_PASSWORD")
+        self.email = email
+        self.password = password
         self.token_file = token_file or DEFAULT_TOKEN_FILE
         self.timeout = timeout
 
@@ -61,7 +57,10 @@ class CharmmGuiClient:
         if not self.token_file.exists():
             return None
 
-        data = json.loads(self.token_file.read_text())
+        try:
+            data = json.loads(self.token_file.read_text())
+        except (json.JSONDecodeError, OSError):
+            return None
         token = data.get("token")
         expires_at = data.get("expires_at")
         if not token or not expires_at:
@@ -85,9 +84,7 @@ class CharmmGuiClient:
     def login(self) -> TokenInfo:
         """Authenticate and cache a new token."""
         if not self.has_credentials():
-            raise CharmmGuiConfigError(
-                "Missing CHARMM-GUI credentials. Set CHARMM_GUI_EMAIL and " "CHARMM_GUI_PASSWORD."
-            )
+            raise CharmmGuiConfigError("Missing CHARMM-GUI credentials. Provide username and password.")
 
         response = requests.post(
             LOGIN_URL,
@@ -103,19 +100,22 @@ class CharmmGuiClient:
         if not token:
             raise CharmmGuiAuthError("Login response did not contain a token.")
 
-        # First implementation: assume short lifetime and cache briefly.
-        # Replace this later with JWT exp parsing if desired.
-        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+        expires_at = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
 
         token_info = TokenInfo(token=token, expires_at=expires_at)
         self.write_cached_token(token_info)
         return token_info
 
+    def get_cached_token(self) -> TokenInfo | None:
+        """Return the cached token if it exists and is still valid, otherwise None."""
+        cached = self.read_cached_token()
+        return cached if (cached and cached.is_valid()) else None
+
     def get_token(self, force_refresh: bool = False) -> str:
         """Return a valid token, using cache when possible."""
         if not force_refresh:
-            cached = self.read_cached_token()
-            if cached and cached.is_valid():
+            cached = self.get_cached_token()
+            if cached:
                 return cached.token
 
         return self.login().token
