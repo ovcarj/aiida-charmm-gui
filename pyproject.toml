@@ -22,7 +22,8 @@ keywords = ["aiida", "plugin"]
 requires-python = ">=3.9"
 dependencies = [
     "aiida-core>=2.5,<3",
-    "voluptuous"
+    "voluptuous",
+    "requests"
 ]
 
 [project.optional-dependencies]
@@ -37,20 +38,11 @@ docs = [
     "markupsafe<2.1"
 ]
 
+[project.scripts]
+"aiida-charmm-gui" = "aiida_charmm_gui.cli:cmd_root"
+
 [project.urls]
 Source = "https://github.com/ovcarj/aiida-charmm-gui"
-
-[project.entry-points."aiida.data"]
-"charmm_gui" = "aiida_charmm_gui.data:DiffParameters"
-
-[project.entry-points."aiida.calculations"]
-"charmm_gui" = "aiida_charmm_gui.calculations:DiffCalculation"
-
-[project.entry-points."aiida.parsers"]
-"charmm_gui" = "aiida_charmm_gui.parsers:DiffParser"
-
-[project.entry-points."aiida.cmdline.data"]
-"charmm_gui" = "aiida_charmm_gui.cli:data_cli"
 
 [tool.pytest.ini_options]
 # Configuration for [pytest](https://docs.pytest.org)
