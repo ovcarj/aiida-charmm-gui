@@ -41,6 +41,9 @@ docs = [
 [project.scripts]
 "aiida-charmm-gui" = "aiida_charmm_gui.cli:cmd_root"
 
+[project.entry-points."aiida.workflows"]
+"charmm_gui.base" = "aiida_charmm_gui.workflows.base:CharmmGuiWorkChain"
+
 [project.urls]
 Source = "https://github.com/ovcarj/aiida-charmm-gui"
 

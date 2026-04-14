@@ -11,6 +11,8 @@ from typing import Any
 import requests
 
 LOGIN_URL = "https://charmm-gui.org/api/login"
+CHECK_STATUS_URL = "https://charmm-gui.org/api/check_status"
+DOWNLOAD_URL = "https://charmm-gui.org/api/download"
 DEFAULT_TOKEN_FILE = Path.home() / ".cache" / "aiida-charmm-gui" / "token.json"
 
 
@@ -100,7 +102,7 @@ class CharmmGuiClient:
         if not token:
             raise CharmmGuiAuthError("Login response did not contain a token.")
 
-        expires_at = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=36)).isoformat()
 
         token_info = TokenInfo(token=token, expires_at=expires_at)
         self.write_cached_token(token_info)
@@ -123,3 +125,23 @@ class CharmmGuiClient:
     def get_auth_headers(self) -> dict[str, str]:
         """Return headers for authenticated requests."""
         return {"Authorization": f"Bearer {self.get_token()}"}
+
+    def submit(self, url: str, parameters: dict[str, Any]) -> dict[str, Any]:
+        """Submit a job to a module endpoint and return the parsed response."""
+        response = requests.post(url, data=parameters, headers=self.get_auth_headers(), timeout=self.timeout)
+        response.raise_for_status()
+        return response.json()
+
+    def check_status(self, jobid: str) -> dict[str, Any]:
+        """Return the current status payload for a job."""
+        response = requests.get(
+            CHECK_STATUS_URL, params={"jobid": jobid}, headers=self.get_auth_headers(), timeout=self.timeout
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def download(self, jobid: str) -> bytes:
+        """Download and return the raw .tgz archive for a completed job."""
+        response = requests.get(DOWNLOAD_URL, params={"jobid": jobid}, headers=self.get_auth_headers(), timeout=120)
+        response.raise_for_status()
+        return response.content
