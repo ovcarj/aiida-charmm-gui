@@ -1,16 +1,22 @@
 """Login subcommand for the `aiida-charmm-gui` CLI."""
 
+import os
+
 import click
 
 from aiida_charmm_gui.client import CharmmGuiAuthError, CharmmGuiClient, CharmmGuiConfigError
 
 
 @click.command("login")
-@click.option("--username", "-u", default=None, help="CHARMM-GUI account email.")
-@click.option("--password", "-p", default=None, hide_input=True, help="CHARMM-GUI account password.")
+@click.option("--username", "-u", default=None, help="CHARMM-GUI account email (fallback: CHARMM_GUI_USER).")
+@click.option(
+    "--password", "-p", default=None, hide_input=True, help="CHARMM-GUI account password (fallback: CHARMM_GUI_PASS)."
+)
 @click.option("--status", is_flag=True, default=False, help="Check whether a valid cached token exists.")
 def cmd_login(username, password, status):
     """Authenticate with the CHARMM-GUI API and cache the token locally."""
+    username = username or os.getenv("CHARMM_GUI_USER")
+    password = password or os.getenv("CHARMM_GUI_PASS")
     client = CharmmGuiClient(email=username, password=password)
 
     if status:

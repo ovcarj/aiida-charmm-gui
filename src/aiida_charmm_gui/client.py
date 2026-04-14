@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -114,10 +115,27 @@ class CharmmGuiClient:
         return cached if (cached and cached.is_valid()) else None
 
     def get_token(self, force_refresh: bool = False) -> str:
-        """Return a valid token, using cache when possible."""
+        """Return a valid token, using cache when possible.
+
+        If ``CHARMM_GUI_USER`` and ``CHARMM_GUI_PASS`` environment variables
+        are set and the cached token expires within one hour, a new token is
+        fetched proactively so long-running jobs are never interrupted by
+        expiry. If the proactive refresh fails the still-valid cached token is
+        used as a fallback.
+        """
         if not force_refresh:
-            cached = self.get_cached_token()
-            if cached:
+            cached = self.read_cached_token()
+            if cached and cached.is_valid():
+                expires = datetime.fromisoformat(cached.expires_at.replace("Z", "+00:00"))
+                expiring_soon = datetime.now(timezone.utc) + timedelta(hours=1) > expires
+                if expiring_soon:
+                    user = os.getenv("CHARMM_GUI_USER")
+                    pw = os.getenv("CHARMM_GUI_PASS")
+                    if user and pw:
+                        try:
+                            return CharmmGuiClient(email=user, password=pw, token_file=self.token_file).login().token
+                        except (CharmmGuiAuthError, CharmmGuiConfigError):
+                            pass  # refresh failed — fall through to the still-valid cached token
                 return cached.token
 
         return self.login().token
