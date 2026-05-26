@@ -12,6 +12,7 @@ AiiDA plugin for submitting jobs to the [CHARMM-GUI](https://charmm-gui.org) RES
 - [Usage](#usage)
   - [Running the WorkChain](#running-the-workchain)
   - [Example: Quick Bilayer membrane](#example-quick-bilayer-membrane)
+  - [Example: Quick Bilayer with typed inputs](#example-quick-bilayer-with-typed-inputs)
   - [Retrieving results](#retrieving-results)
 - [WorkChain inputs and outputs](#workchain-inputs-and-outputs)
 - [Proactive token refresh](#proactive-token-refresh)
@@ -140,7 +141,7 @@ bilayer_parameters = {
     "upper": "DOPC:POPC:CHL1=1:1:2",
     # Lower leaflet: DOPC:POPC:cholesterol in 1:2:1 ratio
     "lower": "DOPC:POPC:CHL1=1:2:1",
-    # Build membrane only (no water/ions)
+    # Build without protein (no jobid_pdb required)
     "membrane_only": "true",
     # XY box margin in Å
     "margin": "20",
@@ -172,6 +173,34 @@ A successful run produces output similar to:
 [check_job_status] Job 1234567890 status: done.
 [download_results] Results stored for job 1234567890.
 ```
+
+---
+
+### Example: Quick Bilayer with typed inputs
+
+`QuickBilayerWorkChain` (`charmm_gui.quick_bilayer`) wraps the generic chain and exposes each Quick Bilayer parameter as a typed AiiDA input. The same bilayer as above, but without constructing a raw parameters dict:
+
+```python
+from aiida import load_profile, orm
+from aiida.engine import submit
+from aiida.plugins import WorkflowFactory
+
+load_profile()
+
+QuickBilayerWorkChain = WorkflowFactory("charmm_gui.quick_bilayer")
+
+node = submit(
+    QuickBilayerWorkChain,
+    upper=orm.Str("DOPC:POPC:CHL1=1:1:2"),
+    lower=orm.Str("DOPC:POPC:CHL1=1:2:1"),
+    membrane_only=orm.Bool(True),
+    margin=orm.Float(20.0),
+    # poll_interval, download_timeout, token_file use their defaults
+)
+print(f"WorkChain submitted: pk={node.pk}, uuid={node.uuid}")
+```
+
+Invalid parameter combinations (e.g. providing both `upper`/`lower` and `membtype`, or omitting `jobid_pdb` for a protein system) are caught in a `validate_inputs` step before anything is sent to CHARMM-GUI, so failures are immediate and clearly reported.
 
 ---
 
@@ -209,30 +238,73 @@ results.copy_tree("/path/to/output/directory")
 
 ## WorkChain inputs and outputs
 
-### Inputs
+### `CharmmGuiWorkChain` (`charmm_gui.base`)
+
+#### Inputs
 
 | Name | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `submission_url` | `Str` | yes | — | Full URL of the module endpoint, e.g. `https://charmm-gui.org/api/quick_bilayer` |
 | `parameters` | `Dict` | yes | — | Form fields sent as POST body |
-| `token_file` | `Str` | no | `~/.cache/aiida-charmm-gui/token.json` | Path to the cached token written by `aiida-charmm-gui login` |
+| `token_file` | `str` (non-db) | no | `~/.cache/aiida-charmm-gui/token.json` | Path to the cached token written by `aiida-charmm-gui login`. Not stored in the provenance graph. |
 | `poll_interval` | `Int` | no | `30` | Seconds between status-check requests |
 | `download_timeout` | `Int` | no | `600` | Maximum seconds to wait for the archive to be packaged after the job reports `done` |
 
-### Outputs
+#### Outputs
 
 | Name | Type | Description |
 |---|---|---|
 | `jobid` | `Str` | CHARMM-GUI job identifier |
 | `results` | `FolderData` | Unpacked contents of the `.tgz` archive |
 
-### Exit codes
+#### Exit codes
 
 | Code | Label | Meaning |
 |---|---|---|
 | 300 | `ERROR_SUBMISSION_FAILED` | The POST request failed or the server did not confirm submission |
 | 301 | `ERROR_JOB_FAILED` | The remote job finished with an error status |
 | 302 | `ERROR_DOWNLOAD_FAILED` | The archive could not be downloaded within `download_timeout` |
+
+---
+
+### `QuickBilayerWorkChain` (`charmm_gui.quick_bilayer`)
+
+#### Inputs
+
+| Name | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `upper` | `Str` | see note | — | Upper leaflet lipid composition, e.g. `"DOPC:POPC:CHL1=1:1:2"`. Required unless `membtype` is set. |
+| `lower` | `Str` | see note | — | Lower leaflet lipid composition. Required unless `membtype` is set. |
+| `membtype` | `Str` | see note | — | Preset membrane type (e.g. `"PMm"`, `"PMf"`). Required unless `upper`/`lower` are set. |
+| `jobid_pdb` | `Str` | see note | — | Job ID from the PDB Reader module. Required unless `membrane_only` is `True`. |
+| `membrane_only` | `Bool` | no | `False` | Build a lipid-only system without protein. |
+| `margin` | `Float` | yes | — | Box boundary margin in Å. |
+| `wdist` | `Float` | no | `22.5` | Z-length water boundary in Å. |
+| `ion_conc` | `Float` | no | `0.15` | Ion concentration in M. |
+| `ion_type` | `Str` | no | `"NaCl"` | Ion type, e.g. `"NaCl"` or `"KCl"`. |
+| `prot_projection_upper` | `Bool` | no | `False` | Enable protein projection on upper leaflet. |
+| `prot_projection_lower` | `Bool` | no | `False` | Enable protein projection on lower leaflet. |
+| `ppm` | `Bool` | no | `False` | Enable PPM support. |
+| `topology_in` | `Bool` | no | `True` | Include N-terminal. |
+| `heteroatoms` | `Bool` | no | `False` | Include hetero atoms. |
+| `clone_job` | `Bool` | no | `False` | Copy job directory for multiple lipid compositions. |
+| `token_file` | `str` (non-db) | no | `~/.cache/aiida-charmm-gui/token.json` | Path to the cached token. Not stored in the provenance graph. |
+| `poll_interval` | `Int` | no | `30` | Seconds between status-check requests. |
+| `download_timeout` | `Int` | no | `600` | Maximum seconds to wait for the archive after the job reports `done`. |
+
+**Mutual-exclusion rules:** provide either `upper`+`lower` or `membtype` (not both, not neither); provide either `jobid_pdb` or `membrane_only=True` (not both, not neither). Violations are caught in `validate_inputs` before submission.
+
+#### Outputs
+
+Same as `CharmmGuiWorkChain`: `jobid` (`Str`) and `results` (`FolderData`).
+
+#### Exit codes
+
+Inherits codes 300–302 from `CharmmGuiWorkChain`, plus:
+
+| Code | Label | Meaning |
+|---|---|---|
+| 400 | `ERROR_INVALID_INPUTS` | Parameter combination violates a mutual-exclusion rule |
 
 ---
 
