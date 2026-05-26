@@ -54,10 +54,11 @@ class CharmmGuiWorkChain(WorkChain):
         )
         spec.input(
             "token_file",
-            valid_type=orm.Str,
+            valid_type=str,
+            non_db=True,
             required=False,
-            default=lambda: orm.Str(str(DEFAULT_TOKEN_FILE)),
-            help="Path to the cached token file written by ``aiida-charmm-gui login``.",
+            default=str(DEFAULT_TOKEN_FILE),
+            help="Path to the cached token file written by ``aiida-charmm-gui login``. Not stored in provenance.",
         )
         spec.input(
             "poll_interval",
@@ -94,12 +95,12 @@ class CharmmGuiWorkChain(WorkChain):
     # ------------------------------------------------------------------
 
     def _client(self) -> CharmmGuiClient:
-        """Instantiate a client from the token file input.
+        """Return a client using the token file from inputs.
 
         A new instance is created each time so the WorkChain remains
         serialisable across daemon checkpoints.
         """
-        return CharmmGuiClient(token_file=Path(self.inputs.token_file.value))
+        return CharmmGuiClient(token_file=Path(self.inputs.token_file))
 
     # ------------------------------------------------------------------
     # Outline steps

@@ -43,6 +43,7 @@ docs = [
 
 [project.entry-points."aiida.workflows"]
 "charmm_gui.base" = "aiida_charmm_gui.workflows.base:CharmmGuiWorkChain"
+"charmm_gui.quick_bilayer" = "aiida_charmm_gui.workflows.quick_bilayer:QuickBilayerWorkChain"
 
 [project.urls]
 Source = "https://github.com/ovcarj/aiida-charmm-gui"
