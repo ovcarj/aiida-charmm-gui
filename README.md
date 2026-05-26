@@ -124,7 +124,7 @@ verdi process report <pk>   # detailed step-by-step log
 
 ### Example: Quick Bilayer membrane
 
-The following example builds a simple DPPC lipid bilayer using the CHARMM-GUI Quick Bilayer module. The `parameters` dictionary corresponds to the form fields accepted by the `/api/quick_bilayer` endpoint.
+The following example builds a mixed DOPC/POPC/cholesterol bilayer using the CHARMM-GUI Quick Bilayer module. Lipid compositions are passed as a single colon-separated string `"LIPID1:LIPID2:...=ratio1:ratio2:..."`. The `membrane_only` flag skips adding water/ions (useful for a dry-run or when you want to add solvent yourself), and `margin` sets the XY box margin in Å.
 
 ```python
 from aiida import load_profile, orm
@@ -135,28 +135,21 @@ load_profile()
 
 WorkChain = WorkflowFactory("charmm_gui.base")
 
-# Parameters for a symmetric DPPC bilayer with ~72 lipids per leaflet
 bilayer_parameters = {
-    # Lipid composition — upper leaflet
-    "lipid1_upper": "DPPC",
-    "num1_upper": "36",
-    # Lipid composition — lower leaflet (symmetric)
-    "lipid1_lower": "DPPC",
-    "num1_lower": "36",
-    # Water and ion options
-    "waterz": "17.5",       # water layer thickness in Å
-    "salt_conc": "0.15",    # KCl concentration in mol/L
-    "cation": "K",
-    "anion": "CL",
-    # Force field
-    "ff": "charmm36",
+    # Upper leaflet: DOPC:POPC:cholesterol in 1:1:2 ratio
+    "upper": "DOPC:POPC:CHL1=1:1:2",
+    # Lower leaflet: DOPC:POPC:cholesterol in 1:2:1 ratio
+    "lower": "DOPC:POPC:CHL1=1:2:1",
+    # Build membrane only (no water/ions)
+    "membrane_only": "true",
+    # XY box margin in Å
+    "margin": "20",
 }
 
 inputs = {
     "submission_url": orm.Str("https://charmm-gui.org/api/quick_bilayer"),
     "parameters": orm.Dict(bilayer_parameters),
-    "poll_interval": orm.Int(60),
-    "download_timeout": orm.Int(900),
+    # token_file and poll_interval use their defaults
 }
 
 node = submit(WorkChain, **inputs)
