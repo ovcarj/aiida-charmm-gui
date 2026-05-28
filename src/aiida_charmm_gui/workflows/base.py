@@ -18,7 +18,7 @@ from aiida_charmm_gui.client import DEFAULT_TOKEN_FILE, CharmmGuiClient
 # Only "done" is the success terminal state; anything that is not "done" and
 # does not start with "running" or "pending" is treated as an error.
 _SUCCESS_STATUS = "done"
-_RUNNING_PREFIXES = ("running", "pending", "submitted")
+_RUNNING_PREFIXES = ("running", "pending", "submitted", "compressing")
 
 
 class CharmmGuiWorkChain(WorkChain):
