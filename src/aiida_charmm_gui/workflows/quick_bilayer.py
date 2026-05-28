@@ -56,6 +56,13 @@ def _build_quick_bilayer_parameters(
     topology_in: bool,
     heteroatoms: bool,
     clone_job: bool,
+    run_ff_converter: bool,
+    temperature: float,
+    align_option: int,
+    hetero_xy_option: str,
+    charmmff_wyf_checked: bool,
+    charmmff_hmr_checked: bool,
+    charmm_mini: bool,
 ) -> dict:
     """Build the form-data parameter dict for the Quick Bilayer API endpoint."""
     params: dict = {"margin": margin}
@@ -67,19 +74,26 @@ def _build_quick_bilayer_parameters(
         params["membtype"] = membtype
 
     if membrane_only:
-        params["membrane_only"] = "true"
+        params["membrane_only"] = "on"
     else:
         params["jobid"] = jobid_pdb
 
     params["wdist"] = wdist
     params["Ion_conc"] = ion_conc
     params["Ion_type"] = ion_type
-    params["prot_projection_upper"] = prot_projection_upper
-    params["prot_projection_lower"] = prot_projection_lower
-    params["ppm"] = ppm
-    params["topologyIn"] = topology_in
-    params["heteroatoms"] = heteroatoms
-    params["clone_job"] = clone_job
+    params["prot_projection_upper"] = "1" if prot_projection_upper else "0"
+    params["prot_projection_lower"] = "1" if prot_projection_lower else "0"
+    params["ppm"] = "1" if ppm else "0"
+    params["topologyIn"] = "1" if topology_in else "0"
+    params["heteroatoms"] = "1" if heteroatoms else "0"
+    params["clone_job"] = "1" if clone_job else "0"
+    params["run_ffconverter"] = "1" if run_ff_converter else "0"
+    params["temperature"] = temperature
+    params["align_option"] = align_option
+    params["hetero_xy_option"] = hetero_xy_option
+    params["charmmff_wyf_checked"] = "1" if charmmff_wyf_checked else "0"
+    params["charmmff_hmr_checked"] = "1" if charmmff_hmr_checked else "0"
+    params["charmm_mini"] = "1" if charmm_mini else "0"
 
     return params
 
@@ -196,6 +210,58 @@ class QuickBilayerWorkChain(WorkChain):
             default=lambda: orm.Bool(False),
             help="Copy job directory for multiple lipid compositions.",
         )
+        spec.input(
+            "run_ff_converter",
+            valid_type=orm.Bool,
+            required=False,
+            default=lambda: orm.Bool(True),
+            help=(
+                "Run the CHARMM-GUI force-field converter to produce GROMACS, AMBER, NAMD, and "
+                "OpenMM input files in addition to the default CHARMM outputs (API field: run_ffconverter)."
+            ),
+        )
+        spec.input(
+            "temperature",
+            valid_type=orm.Float,
+            required=False,
+            default=lambda: orm.Float(303.15),
+            help="Simulation temperature in K, used by the force-field converter when generating MD input files.",
+        )
+        spec.input(
+            "align_option",
+            valid_type=orm.Int,
+            required=False,
+            default=lambda: orm.Int(1),
+            help="Protein alignment option (API field: align_option).",
+        )
+        spec.input(
+            "hetero_xy_option",
+            valid_type=orm.Str,
+            required=False,
+            default=lambda: orm.Str("margin"),
+            help="How to determine the XY box size for hetero atoms (API field: hetero_xy_option).",
+        )
+        spec.input(
+            "charmmff_wyf_checked",
+            valid_type=orm.Bool,
+            required=False,
+            default=lambda: orm.Bool(False),
+            help="Enable CHARMM WYF force-field option (API field: charmmff_wyf_checked).",
+        )
+        spec.input(
+            "charmmff_hmr_checked",
+            valid_type=orm.Bool,
+            required=False,
+            default=lambda: orm.Bool(True),
+            help="Enable hydrogen mass repartitioning (API field: charmmff_hmr_checked).",
+        )
+        spec.input(
+            "charmm_mini",
+            valid_type=orm.Bool,
+            required=False,
+            default=lambda: orm.Bool(False),
+            help="Run CHARMM minimization step (API field: charmm_mini).",
+        )
 
         # --- forwarded to CharmmGuiWorkChain ---
         spec.input(
@@ -262,6 +328,13 @@ class QuickBilayerWorkChain(WorkChain):
             topology_in=self.inputs.topology_in.value,
             heteroatoms=self.inputs.heteroatoms.value,
             clone_job=self.inputs.clone_job.value,
+            run_ff_converter=self.inputs.run_ff_converter.value,
+            temperature=self.inputs.temperature.value,
+            align_option=self.inputs.align_option.value,
+            hetero_xy_option=self.inputs.hetero_xy_option.value,
+            charmmff_wyf_checked=self.inputs.charmmff_wyf_checked.value,
+            charmmff_hmr_checked=self.inputs.charmmff_hmr_checked.value,
+            charmm_mini=self.inputs.charmm_mini.value,
         )
 
     def submit_base_workflow(self):

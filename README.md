@@ -288,6 +288,13 @@ results.copy_tree("/path/to/output/directory")
 | `topology_in` | `Bool` | no | `True` | Include N-terminal. |
 | `heteroatoms` | `Bool` | no | `False` | Include hetero atoms. |
 | `clone_job` | `Bool` | no | `False` | Copy job directory for multiple lipid compositions. |
+| `run_ff_converter` | `Bool` | no | `True` | Run the CHARMM-GUI force-field converter to produce GROMACS, AMBER, NAMD, and OpenMM input files in addition to the default CHARMM outputs (API field: `run_ffconverter`). |
+| `temperature` | `Float` | no | `303.15` | Simulation temperature in K, used by the force-field converter when generating MD input files. |
+| `align_option` | `Int` | no | `1` | Protein alignment option (API field: `align_option`). |
+| `hetero_xy_option` | `Str` | no | `"margin"` | How to determine XY box size for hetero atoms (API field: `hetero_xy_option`). |
+| `charmmff_wyf_checked` | `Bool` | no | `False` | Enable CHARMM WYF force-field option (API field: `charmmff_wyf_checked`). |
+| `charmmff_hmr_checked` | `Bool` | no | `True` | Enable hydrogen mass repartitioning (API field: `charmmff_hmr_checked`). |
+| `charmm_mini` | `Bool` | no | `False` | Run CHARMM minimization step (API field: `charmm_mini`). |
 | `token_file` | `str` (non-db) | no | `~/.cache/aiida-charmm-gui/token.json` | Path to the cached token. Not stored in the provenance graph. |
 | `poll_interval` | `Int` | no | `30` | Seconds between status-check requests. |
 | `download_timeout` | `Int` | no | `600` | Maximum seconds to wait for the archive after the job reports `done`. |

@@ -54,6 +54,13 @@ def _default_build_kwargs(**overrides):
         "topology_in": True,
         "heteroatoms": False,
         "clone_job": False,
+        "run_ff_converter": True,
+        "temperature": 303.15,
+        "align_option": 1,
+        "hetero_xy_option": "margin",
+        "charmmff_wyf_checked": False,
+        "charmmff_hmr_checked": True,
+        "charmm_mini": False,
         **overrides,
     }
 
@@ -118,7 +125,7 @@ def test_build_membrane_only_preset_keys():
     assert params["membtype"] == "PMm"
     assert "upper" not in params
     assert "lower" not in params
-    assert params["membrane_only"] == "true"
+    assert params["membrane_only"] == "on"
     assert "jobid" not in params
 
 
@@ -147,7 +154,10 @@ def test_build_api_field_names():
     assert "Ion_type" in params
     assert params["Ion_type"] == "KCl"
     assert "topologyIn" in params
-    assert params["topologyIn"] is False
+    assert params["topologyIn"] == "0"
+    assert params["run_ffconverter"] == "1"
+    params_no_conv = _build_quick_bilayer_parameters(**_default_build_kwargs(run_ff_converter=False))
+    assert params_no_conv["run_ffconverter"] == "0"
 
 
 def test_build_optional_booleans_present():
@@ -159,8 +169,8 @@ def test_build_optional_booleans_present():
         clone_job=True,
     )
     params = _build_quick_bilayer_parameters(**kwargs)
-    assert params["prot_projection_upper"] is True
-    assert params["prot_projection_lower"] is True
-    assert params["ppm"] is True
-    assert params["heteroatoms"] is True
-    assert params["clone_job"] is True
+    assert params["prot_projection_upper"] == "1"
+    assert params["prot_projection_lower"] == "1"
+    assert params["ppm"] == "1"
+    assert params["heteroatoms"] == "1"
+    assert params["clone_job"] == "1"
