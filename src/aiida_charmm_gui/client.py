@@ -103,7 +103,7 @@ class CharmmGuiClient:
         if not token:
             raise CharmmGuiAuthError("Login response did not contain a token.")
 
-        expires_at = (datetime.now(timezone.utc) + timedelta(hours=36)).isoformat()
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
 
         token_info = TokenInfo(token=token, expires_at=expires_at)
         self.write_cached_token(token_info)
@@ -127,7 +127,7 @@ class CharmmGuiClient:
             cached = self.read_cached_token()
             if cached and cached.is_valid():
                 expires = datetime.fromisoformat(cached.expires_at.replace("Z", "+00:00"))
-                expiring_soon = datetime.now(timezone.utc) + timedelta(hours=1) > expires
+                expiring_soon = datetime.now(timezone.utc) + timedelta(minutes=10) > expires
                 if expiring_soon:
                     user = os.getenv("CHARMM_GUI_USER")
                     pw = os.getenv("CHARMM_GUI_PASS")
