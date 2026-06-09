@@ -64,7 +64,7 @@ class CharmmGuiWorkChain(WorkChain):
             "poll_interval",
             valid_type=orm.Int,
             required=False,
-            default=lambda: orm.Int(120),
+            default=lambda: orm.Int(30),
             help="Seconds to wait between status checks.",
         )
         spec.input(
