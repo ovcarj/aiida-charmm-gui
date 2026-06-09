@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import tarfile
 import tempfile
-import time
 from pathlib import Path
 
 import requests
@@ -33,9 +33,8 @@ class CharmmGuiWorkChain(WorkChain):
     The login step is intentionally outside AiiDA provenance.
 
     .. note::
-        ``poll_interval`` causes a ``time.sleep()`` inside the daemon worker.
-        For long-running jobs, consider pausing the WorkChain externally and
-        resuming it on a schedule instead.
+        ``poll_interval`` is implemented with ``asyncio.sleep``, so the daemon
+        event loop remains responsive to other tasks during polling.
     """
 
     @classmethod
@@ -131,14 +130,14 @@ class CharmmGuiWorkChain(WorkChain):
         """Return True while the job has not reached a terminal state."""
         return self.ctx.job_status != _SUCCESS_STATUS
 
-    def check_job_status(self) -> ExitCode | None:
+    async def check_job_status(self) -> ExitCode | None:
         """Poll /api/check_status and update ``ctx.job_status``."""
         try:
             data = self._client().check_status(self.ctx.jobid)
         except requests.RequestException as exc:
             # Transient network error — log and retry on the next iteration.
             self.report(f"Status check failed (will retry): {exc}")
-            time.sleep(self.inputs.poll_interval.value)
+            await asyncio.sleep(self.inputs.poll_interval.value)
             return
 
         status = data.get("status", "unknown")
@@ -151,9 +150,9 @@ class CharmmGuiWorkChain(WorkChain):
             return self.exit_codes.ERROR_JOB_FAILED
 
         if status != _SUCCESS_STATUS:
-            time.sleep(self.inputs.poll_interval.value)
+            await asyncio.sleep(self.inputs.poll_interval.value)
 
-    def download_results(self) -> ExitCode | None:
+    async def download_results(self) -> ExitCode | None:
         """Download the .tgz archive and store it as ``FolderData``.
 
         CHARMM-GUI may take some time to package the archive after the job
@@ -185,5 +184,5 @@ class CharmmGuiWorkChain(WorkChain):
                     self.report(f"Archive not ready after {timeout}s — giving up.")
                     return self.exit_codes.ERROR_DOWNLOAD_FAILED
                 self.report(f"Archive not ready yet, retrying in {retry_interval}s ({elapsed}s elapsed).")
-                time.sleep(retry_interval)
+                await asyncio.sleep(retry_interval)
                 elapsed += retry_interval
